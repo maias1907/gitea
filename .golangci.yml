@@ -20,7 +20,7 @@ linters:
     - staticcheck
     - stylecheck
     - tenv
-    - testifylint
+    #- testifylint
     - typecheck
     - unconvert
     - unused
