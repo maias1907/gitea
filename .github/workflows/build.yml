@@ -3,7 +3,7 @@ name: Gitea CI Workflow
 on:
   push:
     branches:
-      - feature_branch
+      - new_feature
   # Trigger on push to the dev branch
 
 jobs:
