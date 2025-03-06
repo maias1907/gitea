@@ -1,0 +1,61 @@
+name: Gitea Setup and Testing
+
+on:
+  push:
+    branches:
+      - feature_branch
+
+  pull_request:
+    branches:
+      - feature_branch
+  # Trigger the workflow when a PR is opened to the dev branch ok
+  workflow_dispatch:  # Allows manual trigger from the GitHub UI
+
+jobs:
+  setup-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:13
+        options: --health-cmd="pg_isready -U gitea_user" --health-timeout=30s --health-retries=3
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: gitea
+          POSTGRES_USER: gitea_user
+          POSTGRES_PASSWORD: gitea_pass
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}  # GitHub Secrets for Docker username
+          password: ${{ secrets.DOCKER_PASSWORD }}  # GitHub Secrets for Docker password
+
+      - name: Pull Test Docker Image for API tests
+        run: |
+          docker pull maias816/api_ui_tests:latest
+      # Pull the existing image from docker hub1
+      - name: Run API and UI Tests
+        run: |
+         docker run --rm maias816/api_ui_tests:latest
+
+     # - name: pull feature image # pull and feature image ok k
+      #  run: |
+         # docker pull maias816/code-formatter:latest
+     # - name : run feature tests
+       # run: |
+        #  docker run maias816/code-formatter:latest
+
+
+
+
