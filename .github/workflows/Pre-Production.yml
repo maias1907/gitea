@@ -1,37 +1,61 @@
-name: Pre-Production Performance Testing
+name: Gitea Preproduction Performance Tests
 
 on:
   push:
     branches:
-      - main  # Runs after PR is merged into main
+      - main
+  workflow_dispatch:
 
 jobs:
-  preprod-perf-test:
+  preprod-performance-test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:13
+        options: --health-cmd="pg_isready -U gitea_user" --health-timeout=30s --health-retries=3
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: gitea
+          POSTGRES_USER: gitea_user
+          POSTGRES_PASSWORD: gitea_pass
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Java (required by JMeter)
-        uses: actions/setup-java@v3
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Install JMeter
+      - name: Build Docker image for preprod
         run: |
-          sudo apt update
-          sudo apt install -y jmeter
-          jmeter --version
+          docker build -t maias816/myapp:preprod .
 
-      - name: Run JMeter Test
+      - name: Push Docker image to Docker Hub
         run: |
-          mkdir -p reports/jmeter
-          jmeter -n -t tests/perf_test.jmx -l reports/jmeter/results.jtl -e -o reports/jmeter/report
+          docker push maias816/myapp:preprod
 
-      - name: Upload JMeter HTML Report
-        uses: actions/upload-artifact@bcb6a651d2b8c4fdb17bcf0d2581a3ad16f58aa9  # Pin to known good SHA
-        with:
-          name: jmeter-report
-          path: reports/jmeter/report
+      - name: Run preproduction tests
+        run: |
+          docker run --rm maias816/myapp:preprod ./run_preprod_tests.sh
+
+      - name: Install k6 performance testing tool
+        run: |
+          sudo apt-get update && sudo apt-get install -y gnupg2 software-properties-common
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 15CF4D18AF4F7421
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Run k6 performance test
+        run: |
+          k6 run tests/performance_test.js
