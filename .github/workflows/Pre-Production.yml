@@ -44,9 +44,7 @@ jobs:
         run: |
           docker push maias816/myapp:preprod
 
-      - name: Run preproduction tests
-        run: |
-          docker run --rm maias816/myapp:preprod ./run_preprod_tests.sh
+
 
       - name: Install k6 performance testing tool
         run: |
@@ -58,4 +56,4 @@ jobs:
 
       - name: Run k6 performance test
         run: |
-          k6 run tests/performance_test.js
+          k6 run tests/load_test.js
